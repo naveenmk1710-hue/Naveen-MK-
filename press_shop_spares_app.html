@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PressGuard OS | Critical Spares Monitoring</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbar and smooth transitions */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+    ::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.4); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.7); }
+    .badge-glow-red { box-shadow: 0 0 12px rgba(239, 68, 68, 0.35); }
+    .badge-glow-amber { box-shadow: 0 0 12px rgba(245, 158, 11, 0.35); }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-full flex flex-col font-sans antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Facility -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xl">
+          ⚙️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">PRESSGUARD OS</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Press Shop v2.4</span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">Stamping & Heavy Forging Division • Bay 4 High-Tonnage Lines</p>
+        </div>
+      </div>
+
+      <!-- ROLE SELECTOR (Store Keeper / Supervisor / Purchase Manager) -->
+      <div class="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 shadow-inner">
+        <span class="text-xs font-semibold text-slate-400 px-3 hidden sm:inline-flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Persona:
+        </span>
+        
+        <button id="btn-role-store" onclick="switchRole('store')" 
+          class="role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-cyan-600 text-white shadow-sm shadow-cyan-600/30">
+          <span>📦</span>
+          <span>Store Keeper</span>
+          <span class="text-[10px] opacity-75 hidden md:inline font-mono">(L1 Stock)</span>
+        </button>
+
+        <button id="btn-role-sup" onclick="switchRole('supervisor')" 
+          class="role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <span>📋</span>
+          <span>Supervisor</span>
+          <span class="text-[10px] opacity-75 hidden md:inline font-mono">(L2 Indents)</span>
+        </button>
+
+        <button id="btn-role-pm" onclick="switchRole('purchase')" 
+          class="role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <span>💳</span>
+          <span>Purchase Mgr</span>
+          <span class="text-[10px] opacity-75 hidden md:inline font-mono">(L3 POs)</span>
+        </button>
+      </div>
+
+      <!-- Quick Status & Notifications -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="toggleWorkflowDrawer()" class="relative p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+          <span id="badge-pending-count" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full ring-2 ring-slate-900">4</span>
+        </button>
+
+        <div class="hidden lg:flex flex-col text-right">
+          <span id="user-display-name" class="text-xs font-bold text-slate-200">Devendra Patil</span>
+          <span id="user-role-badge" class="text-[11px] text-cyan-400 font-mono">Store Keeper (Level 1)</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ROLE BANNER NOTIFICATION -->
+  <div id="role-context-banner" class="bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-900 border-b border-cyan-500/20 px-4 lg:px-8 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2.5">
+        <span id="banner-role-icon" class="text-base">📦</span>
+        <div>
+          <span id="banner-role-title" class="font-bold text-cyan-300">Level 1 View: Store Keeper Dashboard</span>
+          <span id="banner-role-desc" class="text-slate-400 ml-2 hidden sm:inline">— You have operational authority to monitor physical bins, track min/max critical stock, and flag critical shortages for Indent review.</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 font-mono">
+        <span class="text-slate-400">Shift:</span>
+        <span class="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">A Shift (06:00 - 14:00)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 flex-1 flex flex-col gap-6">
+
+    <!-- KPI SUMMARY METRICS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      
+      <!-- Metric 1: Critical Spares Alert -->
+      <div class="bg-slate-800/60 border border-rose-500/30 rounded-2xl p-4 relative overflow-hidden backdrop-blur">
+        <div class="absolute -right-3 -bottom-3 w-20 h-20 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-rose-300">Critical Stockouts</span>
+          <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/30">Immediate Action</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="metric-critical" class="text-3xl font-extrabold text-rose-400 tracking-tight">2</span>
+          <span class="text-xs text-slate-400">/ 24 Vital Spares</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span> 1000T Ram Seal & Clutch Disc below safety buffer
+        </p>
+      </div>
+
+      <!-- Metric 2: Low Stock Warning -->
+      <div class="bg-slate-800/60 border border-amber-500/30 rounded-2xl p-4 relative overflow-hidden backdrop-blur">
+        <div class="absolute -right-3 -bottom-3 w-20 h-20 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-amber-300">Reorder Level Hit</span>
+          <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30">Near Buffer</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="metric-warning" class="text-3xl font-extrabold text-amber-400 tracking-tight">3</span>
+          <span class="text-xs text-slate-400">Spares</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2">Sensors & Lube Metering blocks approaching Min-Max limit</p>
+      </div>
+
+      <!-- Metric 3: Active Indents (Supervisor focus) -->
+      <div class="bg-slate-800/60 border border-indigo-500/30 rounded-2xl p-4 relative overflow-hidden backdrop-blur">
+        <div class="absolute -right-3 -bottom-3 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-indigo-300">Indents In Pipeline</span>
+          <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold border border-indigo-500/30">L2 Supervisor</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="metric-indents" class="text-3xl font-extrabold text-indigo-400 tracking-tight">4</span>
+          <span class="text-xs text-slate-400">Awaiting PO</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2 font-mono text-indigo-200/80">Est. Requisition Value: $8,420</p>
+      </div>
+
+      <!-- Metric 4: Purchase Orders Active (Purchase Manager focus) -->
+      <div class="bg-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 relative overflow-hidden backdrop-blur">
+        <div class="absolute -right-3 -bottom-3 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-emerald-300">POs In Transit</span>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">L3 Procurement</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="metric-pos" class="text-3xl font-extrabold text-emerald-400 tracking-tight">3</span>
+          <span class="text-xs text-slate-400">Shipments en route</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2 font-mono text-emerald-200/80">Next Arrival: 18-Sep (Parker Seal Kit)</p>
+      </div>
+
+    </div>
+
+    <!-- FILTER & SEARCH BAR -->
+    <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 backdrop-blur flex flex-col md:flex-row items-center justify-between gap-4">
+      
+      <!-- Search Input -->
+      <div class="relative w-full md:w-96">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <input id="search-input" onkeyup="filterSpares()" type="text" placeholder="Search Part No (e.g. PRS-HYD), part name, press machine..." 
+          class="w-full bg-slate-900/90 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-sm rounded-xl pl-10 pr-4 py-2 text-slate-200 placeholder-slate-500 outline-none transition-all">
+      </div>
+
+      <!-- Filters: Machine Line & Criticality Category -->
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <select id="filter-machine" onchange="filterSpares()" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:border-cyan-500 outline-none">
+          <option value="all">All Press Machines (Lines 1-4)</option>
+          <option value="1200T Komatsu">1200T Komatsu Stamping Press</option>
+          <option value="1000T Schuler">1000T Schuler Hydraulic Blanking</option>
+          <option value="800T Aida">800T Aida Progressive Press</option>
+          <option value="600T Clearing">600T Clearing Tandem Line</option>
+          <option value="500T Bliss">500T Bliss Stamping Press</option>
+        </select>
+
+        <select id="filter-status" onchange="filterSpares()" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:border-cyan-500 outline-none">
+          <option value="all">All Stock Statuses</option>
+          <option value="critical">🚨 Critical / Out of Stock</option>
+          <option value="low">⚠️ Reorder Level Hit</option>
+          <option value="healthy">✅ Healthy Stock</option>
+        </select>
+
+        <!-- Role Action Button -->
+        <button id="role-primary-action-btn" onclick="executeRoleAction()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition shadow-md shadow-cyan-600/30 flex items-center gap-1.5">
+          <span>⚡</span>
+          <span id="role-primary-action-label">Flag Critical Spares</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- CRITICAL SPARES MONITORING GRID -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <span>Critical Spares Registry</span>
+          <span id="spares-count" class="text-xs font-mono font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">6 Parts Displayed</span>
+        </h2>
+        <p class="text-xs text-slate-400">High-tonnage mechanical & hydraulic press components subject to catastrophic breakdown risk</p>
+      </div>
+
+      <!-- Quick View Toggle -->
+      <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+        <button class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-700 text-white">Grid View</button>
+        <button onclick="alert('Table view mode is fully synced with this database!')" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200">Table View</button>
+      </div>
+    </div>
+
+    <!-- SPARES CARDS CONTAINER -->
+    <div id="spares-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- Injected Dynamically by JavaScript -->
+    </div>
+
+  </main>
+
+  <!-- ROLE 2: SUPERVISOR - RAISE INDENT MODAL -->
+  <div id="modal-indent" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+      
+      <button onclick="closeIndentModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl">
+          📋
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Raise Purchase Indent (Requisition)</h3>
+          <p class="text-xs text-slate-400">Level 2 Supervisor authorization required to initiate procurement</p>
+        </div>
+      </div>
+
+      <form id="indent-form" onsubmit="submitIndent(event)" class="space-y-4 text-xs">
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Target Spare Part</label>
+            <input type="text" id="indent-part-name" readonly class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-cyan-300 font-semibold outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Part Number</label>
+            <input type="text" id="indent-part-no" readonly class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-slate-300 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Current Stock</label>
+            <input type="text" id="indent-current-stock" readonly class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-rose-400 font-bold outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Safety Buffer</label>
+            <input type="text" id="indent-safety-buffer" readonly class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-slate-400 outline-none">
+          </div>
+          <div>
+            <label class="block text-indigo-300 font-semibold mb-1">Quantity to Indent *</label>
+            <input type="number" id="indent-qty" required min="1" max="50" value="2" class="w-full bg-slate-950 border border-indigo-500 rounded-xl px-3 py-2 font-mono text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Priority / Urgency *</label>
+            <select id="indent-urgency" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 outline-none focus:border-indigo-500">
+              <option value="Emergency Breakdown">🚨 Emergency Breakdown (Line Down)</option>
+              <option value="High (Below Safety Buffer)" selected>⚠️ High (Below Safety Buffer)</option>
+              <option value="Planned Maintenance (PM)">🔧 Scheduled PM Maintenance</option>
+              <option value="Routine Buffer Replenish">📦 Routine Buffer Replenish</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Required By Date *</label>
+            <input type="date" id="indent-date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Technical Justification & Press Machine Location *</label>
+          <textarea id="indent-notes" required rows="2" placeholder="State reason (e.g. Ram cylinder seal weeping at 240 bar, severe downtime risk during Die 440 runs)..." 
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500"></textarea>
+        </div>
+
+        <div class="bg-indigo-950/40 border border-indigo-500/20 rounded-xl p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-indigo-400">👤 Supervisor Sign-off:</span>
+            <span class="font-bold text-white">Rajesh Verma (Shop Supervisor - Line A)</span>
+          </div>
+          <span class="font-mono text-[10px] text-slate-400">ID: SUP-7741</span>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="closeIndentModal()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold transition">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
+            <span>🚀</span>
+            <span>Raise & Forward to Purchase</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ROLE 3: PURCHASE MANAGER - RAISE PO MODAL -->
+  <div id="modal-po" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+      
+      <button onclick="closePOModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl">
+          💳
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Create Purchase Order (PO)</h3>
+          <p class="text-xs text-slate-400">Level 3 Purchase Manager workflow against approved Supervisor Indent</p>
+        </div>
+      </div>
+
+      <form id="po-form" onsubmit="submitPO(event)" class="space-y-4 text-xs">
+        
+        <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 grid grid-cols-2 gap-3">
+          <div>
+            <span class="text-slate-400 block text-[10px]">Reference Indent No.</span>
+            <span id="po-ref-indent" class="font-mono font-bold text-indigo-400 text-sm">IND-2026-PS-084</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">Target Spare & Part No.</span>
+            <span id="po-part-ref" class="font-bold text-white text-sm">PRS-HYD-SL-9042</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Select Approved Vendor *</label>
+            <select id="po-vendor" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 outline-none focus:border-emerald-500 font-semibold">
+              <option value="Parker Hannifin Motion Control Ltd">Parker Hannifin Seals & Hydraulics</option>
+              <option value="Schuler OEM India Pvt Ltd">Schuler Press OEM Spares</option>
+              <option value="Bosch Rexroth Hydraulics GmbH">Bosch Rexroth Industrial Spares</option>
+              <option value="Festo Pneumatics & Controls">Festo Pneumatic Spares</option>
+              <option value="SKF Lubrication Systems India">SKF / Lincoln Lubrication</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Generated PO Number</label>
+            <input type="text" id="po-number" readonly value="PO-2026-09-4118" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-emerald-400 font-bold outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">PO Quantity</label>
+            <input type="number" id="po-qty" value="2" min="1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-white font-bold outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Unit Price ($)</label>
+            <input type="number" id="po-unit-cost" value="1250" oninput="calcPOTotal()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-white outline-none">
+          </div>
+          <div>
+            <label class="block text-emerald-300 font-semibold mb-1">Total PO Value</label>
+            <input type="text" id="po-total" readonly value="$2,500.00" class="w-full bg-slate-950 border border-emerald-500 rounded-xl px-3 py-2 font-mono text-emerald-400 font-bold outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Dispatch / Delivery ETA *</label>
+            <input type="date" id="po-delivery-date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Incoterms / Shipping Method</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 outline-none focus:border-emerald-500">
+              <option>DAP - Plant 4 Central Store (Express Air)</option>
+              <option>Ex-Works (Surface Logistics)</option>
+              <option>FOB Port of Dispatch</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400">💼 Approving Manager:</span>
+            <span class="font-bold text-white">Sunil Mehta (Head of Plant Procurement)</span>
+          </div>
+          <span class="font-mono text-[10px] text-slate-400">AUTH: PO-MGR-02</span>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="closePOModal()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold transition">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-lg shadow-emerald-600/30 flex items-center gap-1.5">
+            <span>📄</span>
+            <span>Issue PO & Transmit to Vendor</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- PART TECHNICAL SPECIFICATION MODAL -->
+  <div id="modal-spec" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      
+      <button onclick="closeSpecModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <div id="spec-modal-content">
+        <!-- Injected Dynamically -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- WORKFLOW TRACKER DRAWER (Indents & POs status) -->
+  <div id="drawer-workflow" class="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-slate-800/98 border-l border-slate-700 p-6 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col backdrop-blur-md">
+    
+    <div class="flex items-center justify-between pb-4 border-b border-slate-700">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">📊</span>
+        <div>
+          <h3 class="font-bold text-white text-base">Press Shop Requisition Pipeline</h3>
+          <p class="text-xs text-slate-400">Active Indents & Purchase Orders</p>
+        </div>
+      </div>
+      <button onclick="toggleWorkflowDrawer()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <div class="py-3 flex gap-2 border-b border-slate-700 text-xs">
+      <button onclick="switchDrawerTab('indents')" id="tab-btn-indents" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white">Active Indents (4)</button>
+      <button onclick="switchDrawerTab('pos')" id="tab-btn-pos" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white">Active POs (3)</button>
+    </div>
+
+    <div id="drawer-content" class="flex-1 overflow-y-auto py-4 space-y-3">
+      <!-- Injected by script -->
+    </div>
+
+    <div class="pt-4 border-t border-slate-700 flex justify-between items-center text-xs">
+      <span class="text-slate-400">Total Pipeline Value:</span>
+      <span class="font-mono font-bold text-cyan-400 text-sm">$17,250.00</span>
+    </div>
+
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & MOCK DATA -->
+  <script>
+    // CORE SPARES DATA FOR PRESS SHOP
+    const pressSpares = [
+      {
+        id: "spare-1",
+        partNo: "PRS-HYD-SL-9042",
+        name: "Main Ram High-Pressure Polyurethane Seal Kit (Ø420mm)",
+        category: "Hydraulics & Cylinders",
+        machine: "1000T Schuler",
+        machineFull: "1000T Schuler Hydraulic Blanking Press (Line 1)",
+        criticality: "Tier-1 Vital",
+        criticalityColor: "rose",
+        currentStock: 0,
+        minSafetyStock: 2,
+        maxStock: 5,
+        unit: "Sets",
+        binLocation: "Bay 2 • Rack A1-04",
+        leadTime: "14 Days",
+        unitPrice: 1250,
+        oem: "Parker Hannifin / Merkel Germany",
+        wearLife: "180,000 Cycles (Inspect every 30k)",
+        activeIndent: "IND-2026-PS-084",
+        activePO: "PO-2026-09-4118",
+        status: "critical", // critical | low | healthy
+        description: "Quad-lip polyurethane primary pressure seal with bronze-filled PTFE backup rings. Designed to withstand 315 bar peak shock pressures during heavy sheet metal blanking without extrusion.",
+        specs: [
+          { label: "Nominal Piston Dia", val: "420 mm" },
+          { label: "Operating Pressure", val: "315 Bar max" },
+          { label: "Operating Fluid", val: "ISO VG 46 Anti-Wear Hydraulic Oil" },
+          { label: "Temperature Range", val: "-20°C to +110°C" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="grad-hyd" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="100%" stop-color="#0284c7" />
+              </linearGradient>
+              <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#94a3b8" />
+                <stop offset="50%" stop-color="#cbd5e1" />
+                <stop offset="100%" stop-color="#64748b" />
+              </linearGradient>
+            </defs>
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <!-- Technical Grid -->
+            <path d="M20 0 v140 M40 0 v140 M60 0 v140 M80 0 v140 M100 0 v140 M120 0 v140 M140 0 v140 M160 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 20 h200 M0 40 h200 M0 60 h200 M0 80 h200 M0 100 h200 M0 120 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Seal Rings -->
+            <ellipse cx="100" cy="70" rx="72" ry="42" fill="none" stroke="url(#metal)" stroke-width="9"/>
+            <ellipse cx="100" cy="70" rx="60" ry="34" fill="none" stroke="url(#grad-hyd)" stroke-width="7"/>
+            <ellipse cx="100" cy="70" rx="48" ry="26" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="4,3"/>
+            <!-- Cross Section Cutaway Callout -->
+            <rect x="145" y="55" width="22" height="28" rx="3" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/>
+            <path d="M147 62 h18 M147 70 h18 M147 76 h18" stroke="#bae6fd" stroke-width="1"/>
+            <text x="100" y="73" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle">Ø 420 mm</text>
+            <!-- Badge -->
+            <rect x="8" y="8" width="68" height="16" rx="4" fill="#ef4444" fill-opacity="0.2" stroke="#ef4444" stroke-width="1"/>
+            <text x="42" y="20" fill="#fca5a5" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">RAM SEAL KIT</text>
+          </svg>
+        `
+      },
+      {
+        id: "spare-2",
+        partNo: "PRS-CLU-FR-3011",
+        name: "Multi-Plate Pneumatic Clutch & Brake Friction Disc (Ø650mm)",
+        category: "Clutch & Brake System",
+        machine: "1200T Komatsu",
+        machineFull: "1200T Komatsu Mechanical Stamping Press (Line 2)",
+        criticality: "Tier-1 Vital",
+        criticalityColor: "rose",
+        currentStock: 1,
+        minSafetyStock: 3,
+        maxStock: 6,
+        unit: "Pieces",
+        binLocation: "Bay 4 • Rack C2-08",
+        leadTime: "21 Days",
+        unitPrice: 840,
+        oem: "Ortlinghaus / Komatsu Heavy",
+        wearLife: "250,000 Press Strokes (Check thickness weekly)",
+        activeIndent: "IND-2026-PS-079",
+        activePO: null,
+        status: "critical",
+        description: "Sintered metallic heavy-duty friction disc with precision internal gear drive splines. Delivers high thermal dissipation and rapid emergency stopping time (<120ms) compliant with stamping press safety regulations.",
+        specs: [
+          { label: "Outer Diameter", val: "650 mm" },
+          { label: "Spline Teeth Count", val: "84 Internal Gear Teeth" },
+          { label: "Facing Material", val: "Sintered Bronze / Steel Backed" },
+          { label: "Stop Time Rating", val: "< 120 ms at 32 SPM" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <path d="M20 0 v140 M60 0 v140 M100 0 v140 M140 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 30 h200 M0 70 h200 M0 110 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Friction Outer Disc -->
+            <circle cx="100" cy="70" r="54" fill="#334155" stroke="#f59e0b" stroke-width="3"/>
+            <!-- Friction Segments -->
+            <circle cx="100" cy="70" r="44" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="14,6"/>
+            <!-- Internal Spline -->
+            <circle cx="100" cy="70" r="26" fill="#0f172a" stroke="#cbd5e1" stroke-width="2.5"/>
+            <!-- Spline notches -->
+            <path d="M96 44 h8 v6 h-8z M96 90 h8 v6 h-8z M74 66 v8 h6 v-8z M120 66 v8 h6 v-8z" fill="#94a3b8"/>
+            <!-- Bolt holes -->
+            <circle cx="82" cy="52" r="3" fill="#cbd5e1"/>
+            <circle cx="118" cy="52" r="3" fill="#cbd5e1"/>
+            <circle cx="82" cy="88" r="3" fill="#cbd5e1"/>
+            <circle cx="118" cy="88" r="3" fill="#cbd5e1"/>
+            <text x="100" y="74" fill="#f8fafc" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Ø 650 mm</text>
+            <rect x="8" y="8" width="76" height="16" rx="4" fill="#f59e0b" fill-opacity="0.2" stroke="#f59e0b" stroke-width="1"/>
+            <text x="46" y="20" fill="#fcd34d" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">CLUTCH DISC</text>
+          </svg>
+        `
+      },
+      {
+        id: "spare-3",
+        partNo: "PRS-SEN-PR-8820",
+        name: "Heavy-Duty Inductive Die Protection Sensor (M18 PNP NO)",
+        category: "Die Sensing & Automation",
+        machine: "800T Aida",
+        machineFull: "800T Aida Progressive High-Speed Press (Line 3)",
+        criticality: "Tier-2 Essential",
+        criticalityColor: "amber",
+        currentStock: 2,
+        minSafetyStock: 5,
+        maxStock: 12,
+        unit: "Units",
+        binLocation: "Bay 1 • Cabinet E-12",
+        leadTime: "5 Days",
+        unitPrice: 145,
+        oem: "Omron Industrial (E2E-X10)",
+        wearLife: "Continuous / Vibration Proof 50G",
+        activeIndent: "IND-2026-PS-091",
+        activePO: null,
+        status: "low",
+        description: "Solid stainless steel cylindrical proximity sensor for real-time die pilot detection, strip misfeed protection, and part ejection verification to eliminate die double-hit crashes.",
+        specs: [
+          { label: "Sensing Distance", val: "10 mm Flush Shielded" },
+          { label: "Housing Material", val: "SUS303 Stainless Steel" },
+          { label: "Switching Frequency", val: "400 Hz (High Speed)" },
+          { label: "Ingress Protection", val: "IP67 / IP69K Oil Resistant" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <path d="M20 0 v140 M60 0 v140 M100 0 v140 M140 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 30 h200 M0 70 h200 M0 110 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Sensor Threaded Body -->
+            <rect x="40" y="56" width="95" height="28" rx="2" fill="#64748b" stroke="#cbd5e1" stroke-width="1.5"/>
+            <!-- Threads -->
+            <path d="M48 56 v28 M56 56 v28 M64 56 v28 M72 56 v28 M80 56 v28 M88 56 v28 M96 56 v28 M104 56 v28 M112 56 v28 M120 56 v28" stroke="#334155" stroke-width="2"/>
+            <!-- Hex Nuts -->
+            <rect x="68" y="50" width="14" height="40" rx="2" fill="#94a3b8" stroke="#e2e8f0" stroke-width="1.5"/>
+            <rect x="100" y="50" width="14" height="40" rx="2" fill="#94a3b8" stroke="#e2e8f0" stroke-width="1.5"/>
+            <!-- Sensing Face -->
+            <rect x="25" y="58" width="15" height="24" rx="3" fill="#f97316" stroke="#fb923c" stroke-width="1.5"/>
+            <!-- Cable Tail -->
+            <path d="M135 70 h35 q15 0 15 20 v10" fill="none" stroke="#0284c7" stroke-width="5" stroke-linecap="round"/>
+            <!-- LED Indicator -->
+            <circle cx="128" cy="62" r="3" fill="#22c55e"/>
+            <rect x="8" y="8" width="74" height="16" rx="4" fill="#0284c7" fill-opacity="0.2" stroke="#0284c7" stroke-width="1"/>
+            <text x="45" y="20" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">M18 SENSOR</text>
+          </svg>
+        `
+      },
+      {
+        id: "spare-4",
+        partNo: "PRS-LUB-MK-5510",
+        name: "Progressive Lubrication Metering Distributor Valve Block (8-Port)",
+        category: "Lubrication System",
+        machine: "600T Clearing",
+        machineFull: "600T Clearing Tandem Line (Press 3)",
+        criticality: "Tier-1 Vital",
+        criticalityColor: "rose",
+        currentStock: 1,
+        minSafetyStock: 2,
+        maxStock: 4,
+        unit: "Units",
+        binLocation: "Bay 3 • Rack B3-15",
+        leadTime: "10 Days",
+        unitPrice: 490,
+        oem: "Lincoln Helios / SKF",
+        wearLife: "3 Years (Clean strainer every month)",
+        activeIndent: null,
+        activePO: null,
+        status: "low",
+        description: "Feeds metered grease doses to press gibs, slide guide bronze liners, and crankshaft bearings under 150 bar pressure. Equipped with microswitch cycle pin for blockage detection.",
+        specs: [
+          { label: "Number of Outlets", val: "8 Ports (1/8\" NPT)" },
+          { label: "Discharge Volume", val: "0.20 cc / stroke" },
+          { label: "Max Operating Bar", val: "250 Bar grease" },
+          { label: "Cycle Pin Sensor", val: "Integrated Inductive Pin" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <path d="M20 0 v140 M60 0 v140 M100 0 v140 M140 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 30 h200 M0 70 h200 M0 110 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Block Body -->
+            <rect x="50" y="38" width="100" height="64" rx="5" fill="#475569" stroke="#94a3b8" stroke-width="2"/>
+            <!-- Divider segments -->
+            <line x1="75" y1="38" x2="75" y2="102" stroke="#334155" stroke-width="1.5"/>
+            <line x1="100" y1="38" x2="100" y2="102" stroke="#334155" stroke-width="1.5"/>
+            <line x1="125" y1="38" x2="125" y2="102" stroke="#334155" stroke-width="1.5"/>
+            <!-- Port fittings top -->
+            <rect x="60" y="28" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="85" y="28" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="110" y="28" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="135" y="28" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <!-- Port fittings bottom -->
+            <rect x="60" y="102" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="85" y="102" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="110" y="102" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <rect x="135" y="102" width="8" height="10" rx="1" fill="#cbd5e1"/>
+            <!-- Indicator Pin on side -->
+            <rect x="34" y="65" width="16" height="10" rx="2" fill="#eab308" stroke="#ca8a04" stroke-width="1"/>
+            <rect x="8" y="8" width="76" height="16" rx="4" fill="#eab308" fill-opacity="0.2" stroke="#eab308" stroke-width="1"/>
+            <text x="46" y="20" fill="#fde047" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">LUBE BLOCK</text>
+          </svg>
+        `
+      },
+      {
+        id: "spare-5",
+        partNo: "PRS-VLV-DS-4402",
+        name: "Dual Safety Monitored Solenoid Valve for Clutch/Brake (G 1-1/2\")",
+        category: "Safety & Pneumatics",
+        machine: "1200T Komatsu",
+        machineFull: "1200T Komatsu Mechanical Stamping Press",
+        criticality: "Tier-1 Vital",
+        criticalityColor: "rose",
+        currentStock: 1,
+        minSafetyStock: 2,
+        maxStock: 3,
+        unit: "Units",
+        binLocation: "Bay 4 • Rack D1-02",
+        leadTime: "30 Days",
+        unitPrice: 2180,
+        oem: "Ross Controls DM2 Series E",
+        wearLife: "20 Million Shifts (Mandatory 5-Yr Rebuild)",
+        activeIndent: "IND-2026-PS-095",
+        activePO: "PO-2026-09-4099",
+        status: "low",
+        description: "Redundant cross-flow dual poppet valve with dynamic spool monitoring sensors. Certified Category 4 PLe according to ISO 13849-1 press safety standards. Prevents unintended press repeat strokes.",
+        specs: [
+          { label: "Port Size", val: "G 1-1/2\" BSPP" },
+          { label: "Safety Rating", val: "Cat 4, PLe (ISO 13849)" },
+          { label: "Solenoid Voltage", val: "24 VDC (Dual Coil)" },
+          { label: "Flow Capacity", val: "Cv 16.5 (Instant Exhaust)" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <path d="M20 0 v140 M60 0 v140 M100 0 v140 M140 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 30 h200 M0 70 h200 M0 110 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Dual Solenoid Valve Body -->
+            <rect x="45" y="45" width="110" height="60" rx="6" fill="#334155" stroke="#64748b" stroke-width="2"/>
+            <!-- Dual Solenoid Coils on top -->
+            <rect x="58" y="24" width="28" height="21" rx="3" fill="#dc2626" stroke="#f87171" stroke-width="1.5"/>
+            <rect x="114" y="24" width="28" height="21" rx="3" fill="#dc2626" stroke="#f87171" stroke-width="1.5"/>
+            <!-- Solenoid plugs -->
+            <rect x="66" y="16" width="12" height="8" rx="1" fill="#1e293b"/>
+            <rect x="122" y="16" width="12" height="8" rx="1" fill="#1e293b"/>
+            <!-- Flange Outlets -->
+            <circle cx="72" cy="75" r="14" fill="#0f172a" stroke="#cbd5e1" stroke-width="2"/>
+            <circle cx="128" cy="75" r="14" fill="#0f172a" stroke="#cbd5e1" stroke-width="2"/>
+            <!-- Status Pin -->
+            <circle cx="100" cy="75" r="5" fill="#22c55e"/>
+            <rect x="8" y="8" width="84" height="16" rx="4" fill="#dc2626" fill-opacity="0.2" stroke="#dc2626" stroke-width="1"/>
+            <text x="50" y="20" fill="#fca5a5" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">DUAL SAFETY VALVE</text>
+          </svg>
+        `
+      },
+      {
+        id: "spare-6",
+        partNo: "PRS-BSH-BR-7218",
+        name: "Self-Lubricating Phosphor Bronze Bolster Bushing (ID 120mm)",
+        category: "Mechanical & Slide Guides",
+        machine: "500T Bliss",
+        machineFull: "500T Bliss Stamping Press (Line 4)",
+        criticality: "Tier-2 Essential",
+        criticalityColor: "emerald",
+        currentStock: 4,
+        minSafetyStock: 4,
+        maxStock: 8,
+        unit: "Pieces",
+        binLocation: "Bay 1 • Rack G4-19",
+        leadTime: "18 Days",
+        unitPrice: 320,
+        oem: "Sankyo Oilless Industry",
+        wearLife: "500,000 Cycles (Check slide clearance biannually)",
+        activeIndent: null,
+        activePO: null,
+        status: "healthy",
+        description: "High-strength CuZn25Al5 bronze alloy bushing embedded with solid graphite plug lubricants. Provides zero-scuff slide guidance during severe eccentric die blanking loads.",
+        specs: [
+          { label: "Inside Diameter", val: "120 mm (+0.035 / +0)" },
+          { label: "Outside Diameter", val: "150 mm" },
+          { label: "Total Length", val: "140 mm" },
+          { label: "Base Alloy", val: "Aluminum Bronze with Graphite Plugs" }
+        ],
+        svgImage: `
+          <svg viewBox="0 0 200 140" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="140" fill="#0f172a" rx="12"/>
+            <path d="M20 0 v140 M60 0 v140 M100 0 v140 M140 0 v140 M180 0 v140" stroke="#1e293b" stroke-width="0.8"/>
+            <path d="M0 30 h200 M0 70 h200 M0 110 h200" stroke="#1e293b" stroke-width="0.8"/>
+            <!-- Flanged Bushing Profile -->
+            <path d="M45 42 h110 v16 h-15 v52 h-80 v-52 h-15 z" fill="#b45309" stroke="#f59e0b" stroke-width="2"/>
+            <rect x="60" y="58" width="80" height="52" fill="#d97706"/>
+            <!-- Inside bore -->
+            <ellipse cx="100" cy="84" rx="25" ry="12" fill="#78350f" stroke="#fde68a" stroke-width="1.5"/>
+            <!-- Graphite plugs -->
+            <circle cx="75" cy="70" r="4" fill="#0f172a"/>
+            <circle cx="95" cy="70" r="4" fill="#0f172a"/>
+            <circle cx="115" cy="70" r="4" fill="#0f172a"/>
+            <circle cx="85" cy="94" r="4" fill="#0f172a"/>
+            <circle cx="105" cy="94" r="4" fill="#0f172a"/>
+            <circle cx="125" cy="94" r="4" fill="#0f172a"/>
+            <text x="100" y="52" fill="#fef3c7" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Ø 120 mm BORE</text>
+            <rect x="8" y="8" width="76" height="16" rx="4" fill="#10b981" fill-opacity="0.2" stroke="#10b981" stroke-width="1"/>
+            <text x="46" y="20" fill="#6ee7b7" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">BRONZE BUSH</text>
+          </svg>
+        `
+      }
+    ];
+
+    // INITIAL ACTIVE INDENTS (Requisitions)
+    let indentsData = [
+      {
+        id: "IND-2026-PS-084",
+        partNo: "PRS-HYD-SL-9042",
+        partName: "Main Ram High-Pressure Polyurethane Seal Kit",
+        qty: 2,
+        urgency: "Emergency Breakdown",
+        raisedBy: "Rajesh Verma (Supervisor)",
+        date: "2026-09-14",
+        status: "PO Raised",
+        poNumber: "PO-2026-09-4118",
+        reason: "Zero stock in Stores. Ram cylinder weeping oil; critical production risk."
+      },
+      {
+        id: "IND-2026-PS-079",
+        partNo: "PRS-CLU-FR-3011",
+        partName: "Pneumatic Clutch & Brake Friction Disc",
+        qty: 3,
+        urgency: "High (Below Safety Buffer)",
+        raisedBy: "Rajesh Verma (Supervisor)",
+        date: "2026-09-13",
+        status: "Pending PO",
+        poNumber: null,
+        reason: "Stock down to 1 pc (Min is 3). Preventive clutch overhaul scheduled for Line 2."
+      },
+      {
+        id: "IND-2026-PS-091",
+        partNo: "PRS-SEN-PR-8820",
+        partName: "Heavy-Duty Inductive Die Protection Sensor",
+        qty: 5,
+        urgency: "Planned Maintenance",
+        raisedBy: "Vikas Sharma (Line 3 Lead)",
+        date: "2026-09-12",
+        status: "Pending PO",
+        poNumber: null,
+        reason: "Restock buffer for high-frequency tooling changeovers."
+      },
+      {
+        id: "IND-2026-PS-095",
+        partNo: "PRS-VLV-DS-4402",
+        partName: "Dual Safety Monitored Solenoid Valve",
+        qty: 1,
+        urgency: "High (Below Safety Buffer)",
+        raisedBy: "Rajesh Verma (Supervisor)",
+        date: "2026-09-10",
+        status: "PO Raised",
+        poNumber: "PO-2026-09-4099",
+        reason: "Mandatory safety reserve replacement for Komatsu 1200T press."
+      }
+    ];
+
+    // ACTIVE PURCHASE ORDERS
+    let poData = [
+      {
+        poNo: "PO-2026-09-4118",
+        refIndent: "IND-2026-PS-084",
+        partNo: "PRS-HYD-SL-9042",
+        vendor: "Parker Hannifin India Ltd",
+        qty: 2,
+        totalVal: "$2,500.00",
+        eta: "18-Sep-2026",
+        status: "Dispatched / In-Transit"
+      },
+      {
+        poNo: "PO-2026-09-4099",
+        refIndent: "IND-2026-PS-095",
+        partNo: "PRS-VLV-DS-4402",
+        vendor: "Ross Controls International",
+        qty: 1,
+        totalVal: "$2,180.00",
+        eta: "25-Sep-2026",
+        status: "Vendor Order Confirmed"
+      },
+      {
+        poNo: "PO-2026-09-3980",
+        refIndent: "IND-2026-PS-062",
+        partNo: "PRS-LUB-MK-5510",
+        vendor: "SKF Industrial Lubrication",
+        qty: 2,
+        totalVal: "$980.00",
+        eta: "20-Sep-2026",
+        status: "Customs Clearance"
+      }
+    ];
+
+    // CURRENT ROLE STATE: 'store' | 'supervisor' | 'purchase'
+    let currentRole = 'store';
+
+    // INITIAL RENDER
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSparesGrid(pressSpares);
+      renderDrawerContent();
+      updateMetrics();
+      // Set today's date for indent form
+      const today = new Date().toISOString().split('T')[0];
+      const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      document.getElementById('indent-date').value = nextWeek;
+      document.getElementById('po-delivery-date').value = nextWeek;
+    });
+
+    // ROLE SWITCHER
+    function switchRole(role) {
+      currentRole = role;
+      
+      // Update Button Styles
+      const roles = ['store', 'supervisor', 'purchase'];
+      roles.forEach(r => {
+        const btn = document.getElementById(`btn-role-${r === 'supervisor' ? 'sup' : (r === 'purchase' ? 'pm' : 'store')}`);
+        if (r === role) {
+          btn.className = "role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-cyan-600 text-white shadow-sm shadow-cyan-600/30";
+        } else {
+          btn.className = "role-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800/60";
+        }
+      });
+
+      // Update Persona labels and banner
+      const userDisplay = document.getElementById('user-display-name');
+      const userRoleBadge = document.getElementById('user-role-badge');
+      const bannerTitle = document.getElementById('banner-role-title');
+      const bannerDesc = document.getElementById('banner-role-desc');
+      const bannerIcon = document.getElementById('banner-role-icon');
+      const actionBtnLabel = document.getElementById('role-primary-action-label');
+
+      if (role === 'store') {
+        userDisplay.innerText = "Devendra Patil";
+        userRoleBadge.innerText = "Store Keeper (Level 1)";
+        userRoleBadge.className = "text-[11px] text-cyan-400 font-mono";
+        bannerIcon.innerText = "📦";
+        bannerTitle.innerText = "Level 1 View: Store Keeper Dashboard";
+        bannerTitle.className = "font-bold text-cyan-300";
+        bannerDesc.innerText = "— Physical bin stock verification, consumption logging, and flagging critical shortages to Press Shop Supervisor.";
+        actionBtnLabel.innerText = "Verify Physical Bins";
+      } else if (role === 'supervisor') {
+        userDisplay.innerText = "Rajesh Verma";
+        userRoleBadge.innerText = "Press Shop Supervisor (Level 2)";
+        userRoleBadge.className = "text-[11px] text-indigo-400 font-mono";
+        bannerIcon.innerText = "📋";
+        bannerTitle.innerText = "Level 2 View: Supervisor Operations & Indent Portal";
+        bannerTitle.className = "font-bold text-indigo-300";
+        bannerDesc.innerText = "— Authorized to raise formal Purchase Indents for critical machine spares, evaluate downtime risks, and assign urgency ratings.";
+        actionBtnLabel.innerText = "Raise New Indent";
+      } else if (role === 'purchase') {
+        userDisplay.innerText = "Sunil Mehta";
+        userRoleBadge.innerText = "Procurement Manager (Level 3)";
+        userRoleBadge.className = "text-[11px] text-emerald-400 font-mono";
+        bannerIcon.innerText = "💳";
+        bannerTitle.innerText = "Level 3 View: Purchase Management & PO Issuance";
+        bannerTitle.className = "font-bold text-emerald-300";
+        bannerDesc.innerText = "— Review approved indents, negotiate vendor pricing, issue binding Purchase Orders (POs), and monitor logistics delivery timelines.";
+        actionBtnLabel.innerText = "Issue Next Pending PO";
+      }
+
+      // Re-render grid with role-tailored action buttons
+      filterSpares();
+    }
+
+    // RENDER SPARES GRID
+    function renderSparesGrid(spares) {
+      const grid = document.getElementById('spares-grid');
+      document.getElementById('spares-count').innerText = `${spares.length} Parts Displayed`;
+
+      if (spares.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/60">
+            <span class="text-4xl block mb-2">🔍</span>
+            <p class="text-slate-300 font-semibold text-sm">No critical press spares match the selected filters</p>
+            <p class="text-xs text-slate-500 mt-1">Try resetting the search query or machine dropdown.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = spares.map(item => {
+        // Stock percentage
+        const stockPct = Math.min(100, Math.round((item.currentStock / item.minSafetyStock) * 100));
+        const isCritical = item.currentStock === 0;
+        const isLow = item.currentStock <= item.minSafetyStock && item.currentStock > 0;
+        
+        let stockBarColor = "bg-emerald-500";
+        let statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">Optimal Stock</span>`;
+        
+        if (isCritical) {
+          stockBarColor = "bg-rose-500";
+          statusBadge = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-extrabold border border-rose-500/40 animate-pulse badge-glow-red">🚨 STOCKOUT CRITICAL</span>`;
+        } else if (isLow) {
+          stockBarColor = "bg-amber-500";
+          statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40 badge-glow-amber">⚠️ REORDER LEVEL</span>`;
+        }
+
+        // Action button based on active role
+        let actionButtonHTML = "";
+        if (currentRole === 'store') {
+          actionButtonHTML = `
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700/60">
+              <button onclick="logConsumption('${item.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
+                <span>➖</span> Issue Spares
+              </button>
+              <button onclick="openIndentForSpare('${item.id}')" class="px-3 py-1.5 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm">
+                <span>📢</span> Flag for Indent
+              </button>
+            </div>
+          `;
+        } else if (currentRole === 'supervisor') {
+          actionButtonHTML = `
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700/60">
+              <button onclick="openSpecModal('${item.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
+                <span>🔍</span> Tech Specs
+              </button>
+              <button onclick="openIndentForSpare('${item.id}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-md shadow-indigo-600/30">
+                <span>📋</span> Raise Indent
+              </button>
+            </div>
+          `;
+        } else if (currentRole === 'purchase') {
+          actionButtonHTML = `
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700/60">
+              <button onclick="openSpecModal('${item.id}')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
+                <span>📑</span> Vendor Quotes
+              </button>
+              <button onclick="openPOForSpare('${item.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-md shadow-emerald-600/30">
+                <span>💳</span> Issue PO
+              </button>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-600 transition-all hover:shadow-xl hover:shadow-cyan-900/10 group">
+            
+            <div>
+              <!-- CARD HEADER: PART NO & STATUS -->
+              <div class="flex items-start justify-between gap-2 mb-2.5">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono text-xs font-extrabold text-cyan-400 tracking-wide bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-500/30">${item.partNo}</span>
+                    <button onclick="navigator.clipboard.writeText('${item.partNo}'); alert('Copied Part No: ${item.partNo}')" title="Copy Part No" class="text-slate-400 hover:text-white p-0.5">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                    </button>
+                  </div>
+                  <span class="text-[11px] text-slate-400 font-medium block mt-1">Machine: <strong class="text-slate-200">${item.machine}</strong></span>
+                </div>
+                ${statusBadge}
+              </div>
+
+              <!-- PART IMAGE / TECHNICAL SCHEMATIC (SVG) -->
+              <div class="relative w-full h-36 rounded-xl overflow-hidden mb-3 border border-slate-700/60 bg-slate-950 cursor-pointer group-hover:scale-[1.01] transition-transform" onclick="openSpecModal('${item.id}')">
+                ${item.svgImage}
+                <div class="absolute bottom-2 right-2 bg-slate-900/90 backdrop-blur px-2 py-0.5 rounded text-[10px] font-mono text-slate-300 border border-slate-700 flex items-center gap-1">
+                  <span>📐</span> Click for Drawing
+                </div>
+              </div>
+
+              <!-- PART DESCRIPTION & NAME -->
+              <h3 class="text-sm font-bold text-white tracking-tight leading-snug hover:text-cyan-300 cursor-pointer" onclick="openSpecModal('${item.id}')">
+                ${item.name}
+              </h3>
+              <p class="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                ${item.description}
+              </p>
+
+              <!-- INVENTORY METRICS & BAR -->
+              <div class="mt-3.5 bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/50">
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="text-slate-400">Current On-Hand:</span>
+                  <span class="font-mono font-extrabold ${isCritical ? 'text-rose-400' : (isLow ? 'text-amber-400' : 'text-emerald-400')}">
+                    ${item.currentStock} ${item.unit} <span class="text-slate-500 font-normal">/ Min: ${item.minSafetyStock}</span>
+                  </span>
+                </div>
+
+                <!-- Progress Stock Bar -->
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="h-full ${stockBarColor} transition-all duration-500" style="width: ${stockPct}%"></div>
+                </div>
+
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2 font-mono">
+                  <span>📍 ${item.binLocation}</span>
+                  <span>⏳ Lead: ${item.leadTime}</span>
+                  <span>💲 \$${item.unitPrice}</span>
+                </div>
+              </div>
+
+              <!-- PIPELINE STATUS TAGS (If any active Indent or PO exists) -->
+              <div class="flex flex-wrap gap-1.5 mt-2.5 min-h-[22px]">
+                ${item.activeIndent ? `
+                  <span class="text-[10px] font-mono bg-indigo-950/70 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded flex items-center gap-1">
+                    <span>📋 Indent:</span> ${item.activeIndent}
+                  </span>
+                ` : ''}
+                ${item.activePO ? `
+                  <span class="text-[10px] font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1">
+                    <span>💳 PO:</span> ${item.activePO}
+                  </span>
+                ` : ''}
+              </div>
+
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="mt-3">
+              ${actionButtonHTML}
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    // SEARCH & FILTER FUNCTION
+    function filterSpares() {
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      const machineFilter = document.getElementById('filter-machine').value;
+      const statusFilter = document.getElementById('filter-status').value;
+
+      const filtered = pressSpares.filter(spare => {
+        const matchesQuery = 
+          spare.partNo.toLowerCase().includes(query) ||
+          spare.name.toLowerCase().includes(query) ||
+          spare.machine.toLowerCase().includes(query) ||
+          spare.oem.toLowerCase().includes(query) ||
+          spare.description.toLowerCase().includes(query);
+
+        const matchesMachine = machineFilter === 'all' || spare.machine.includes(machineFilter);
+        
+        let matchesStatus = true;
+        if (statusFilter === 'critical') {
+          matchesStatus = spare.currentStock === 0;
+        } else if (statusFilter === 'low') {
+          matchesStatus = spare.currentStock <= spare.minSafetyStock && spare.currentStock > 0;
+        } else if (statusFilter === 'healthy') {
+          matchesStatus = spare.currentStock > spare.minSafetyStock;
+        }
+
+        return matchesQuery && matchesMachine && matchesStatus;
+      });
+
+      renderSparesGrid(filtered);
+    }
+
+    // LOG PHYSICAL CONSUMPTION (Store Keeper action)
+    function logConsumption(spareId) {
+      const spare = pressSpares.find(s => s.id === spareId);
+      if (!spare) return;
+
+      if (spare.currentStock <= 0) {
+        alert(`Cannot issue part ${spare.partNo} - Physical stock is already ZERO!`);
+        return;
+      }
+
+      spare.currentStock -= 1;
+      if (spare.currentStock === 0) {
+        spare.status = 'critical';
+      } else if (spare.currentStock <= spare.minSafetyStock) {
+        spare.status = 'low';
+      }
+
+      alert(`Issued 1 ${spare.unit} of [${spare.partNo}] for Press Maintenance. Remaining Stock: ${spare.currentStock}`);
+      updateMetrics();
+      filterSpares();
+    }
+
+    // OPEN SUPERVISOR INDENT MODAL
+    function openIndentForSpare(spareId) {
+      const spare = pressSpares.find(s => s.id === spareId) || pressSpares[0];
+      document.getElementById('indent-part-name').value = spare.name;
+      document.getElementById('indent-part-no').value = spare.partNo;
+      document.getElementById('indent-current-stock').value = `${spare.currentStock} ${spare.unit}`;
+      document.getElementById('indent-safety-buffer').value = `${spare.minSafetyStock} ${spare.unit}`;
+      document.getElementById('indent-qty').value = Math.max(2, (spare.minSafetyStock - spare.currentStock) + 2);
+      document.getElementById('indent-notes').value = `Critical spare required for ${spare.machine}. Prevents unplanned press line breakdown.`;
+
+      document.getElementById('modal-indent').classList.remove('hidden');
+      document.getElementById('modal-indent').classList.add('flex');
+    }
+
+    function closeIndentModal() {
+      document.getElementById('modal-indent').classList.add('hidden');
+      document.getElementById('modal-indent').classList.remove('flex');
+    }
+
+    // SUBMIT INDENT
+    function submitIndent(e) {
+      e.preventDefault();
+      const partNo = document.getElementById('indent-part-no').value;
+      const qty = parseInt(document.getElementById('indent-qty').value, 10);
+      const urgency = document.getElementById('indent-urgency').value;
+      const notes = document.getElementById('indent-notes').value;
+      const targetDate = document.getElementById('indent-date').value;
+
+      const newIndentId = `IND-2026-PS-0${Math.floor(100 + Math.random() * 900)}`;
+
+      const newIndent = {
+        id: newIndentId,
+        partNo: partNo,
+        partName: document.getElementById('indent-part-name').value,
+        qty: qty,
+        urgency: urgency,
+        raisedBy: "Rajesh Verma (Supervisor)",
+        date: targetDate,
+        status: "Pending PO",
+        poNumber: null,
+        reason: notes
+      };
+
+      indentsData.unshift(newIndent);
+
+      // Attach indent ID to part
+      const spare = pressSpares.find(s => s.partNo === partNo);
+      if (spare) {
+        spare.activeIndent = newIndentId;
+      }
+
+      closeIndentModal();
+      updateMetrics();
+      renderDrawerContent();
+      filterSpares();
+
+      alert(`✅ Indent #${newIndentId} successfully raised for ${partNo}!\nForwarded to Purchase Manager for PO generation.`);
+    }
+
+    // OPEN PURCHASE MANAGER PO MODAL
+    function openPOForSpare(spareId) {
+      const spare = pressSpares.find(s => s.id === spareId) || pressSpares[0];
+      document.getElementById('po-ref-indent').innerText = spare.activeIndent || "IND-2026-PS-079";
+      document.getElementById('po-part-ref').innerText = `${spare.partNo} (${spare.name.substring(0, 30)}...)`;
+      document.getElementById('po-unit-cost').value = spare.unitPrice;
+      document.getElementById('po-qty').value = spare.minSafetyStock;
+      document.getElementById('po-number').value = `PO-2026-09-${Math.floor(4200 + Math.random() * 800)}`;
+      
+      calcPOTotal();
+
+      document.getElementById('modal-po').classList.remove('hidden');
+      document.getElementById('modal-po').classList.add('flex');
+    }
+
+    function closePOModal() {
+      document.getElementById('modal-po').classList.add('hidden');
+      document.getElementById('modal-po').classList.remove('flex');
+    }
+
+    function calcPOTotal() {
+      const qty = parseFloat(document.getElementById('po-qty').value) || 0;
+      const unit = parseFloat(document.getElementById('po-unit-cost').value) || 0;
+      const total = qty * unit;
+      document.getElementById('po-total').value = `$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    }
+
+    // SUBMIT PURCHASE ORDER (PO)
+    function submitPO(e) {
+      e.preventDefault();
+      const poNo = document.getElementById('po-number').value;
+      const refIndent = document.getElementById('po-ref-indent').innerText;
+      const vendor = document.getElementById('po-vendor').value;
+      const qty = parseInt(document.getElementById('po-qty').value, 10);
+      const totalVal = document.getElementById('po-total').value;
+      const eta = document.getElementById('po-delivery-date').value;
+      const partRef = document.getElementById('po-part-ref').innerText.split(' ')[0];
+
+      const newPO = {
+        poNo: poNo,
+        refIndent: refIndent,
+        partNo: partRef,
+        vendor: vendor,
+        qty: qty,
+        totalVal: totalVal,
+        eta: eta,
+        status: "Transmitted to Vendor"
+      };
+
+      poData.unshift(newPO);
+
+      // Update matching indent status
+      const matchIndent = indentsData.find(ind => ind.id === refIndent);
+      if (matchIndent) {
+        matchIndent.status = "PO Raised";
+        matchIndent.poNumber = poNo;
+      }
+
+      // Update matching spare
+      const matchSpare = pressSpares.find(s => s.partNo === partRef);
+      if (matchSpare) {
+        matchSpare.activePO = poNo;
+      }
+
+      closePOModal();
+      updateMetrics();
+      renderDrawerContent();
+      filterSpares();
+
+      alert(`🎉 Purchase Order #${poNo} generated against Indent ${refIndent}!\nDispatched to supplier: ${vendor}.`);
+    }
+
+    // OPEN PART SPECIFICATION MODAL
+    function openSpecModal(spareId) {
+      const spare = pressSpares.find(s => s.id === spareId);
+      if (!spare) return;
+
+      const content = document.getElementById('spec-modal-content');
+      content.innerHTML = `
+        <div class="flex items-start justify-between gap-4 mb-4 pb-4 border-b border-slate-700">
+          <div>
+            <span class="font-mono text-xs font-bold text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-500/30">${spare.partNo}</span>
+            <h2 class="text-lg font-bold text-white mt-2">${spare.name}</h2>
+            <p class="text-xs text-slate-400 mt-1">${spare.machineFull} • OEM: ${spare.oem}</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">${spare.criticality}</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div class="h-48 bg-slate-950 rounded-xl overflow-hidden border border-slate-700/60 p-2">
+            ${spare.svgImage}
+          </div>
+          <div class="space-y-2 text-xs bg-slate-900/70 p-3 rounded-xl border border-slate-700/50">
+            <h4 class="font-bold text-slate-200 uppercase tracking-wider text-[11px]">Key Technical Parameters</h4>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              ${spare.specs.map(sp => `
+                <div class="bg-slate-800/80 p-2 rounded-lg">
+                  <span class="text-slate-400 block text-[10px]">${sp.label}</span>
+                  <span class="font-mono font-bold text-cyan-300 text-xs">${sp.val}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div class="pt-2 text-slate-400 text-[11px]">
+              <strong>Standard Wear Life:</strong> ${spare.wearLife}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-3 text-xs mb-5">
+          <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700">
+            <h4 class="font-bold text-slate-300 mb-1">Engineering Functional Description</h4>
+            <p class="text-slate-400 leading-relaxed">${spare.description}</p>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-center">
+              <span class="text-slate-400 text-[10px] block">Location in Stores</span>
+              <span class="font-mono font-bold text-white text-xs">${spare.binLocation}</span>
+            </div>
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-center">
+              <span class="text-slate-400 text-[10px] block">Procurement Lead Time</span>
+              <span class="font-mono font-bold text-amber-400 text-xs">${spare.leadTime}</span>
+            </div>
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-center">
+              <span class="text-slate-400 text-[10px] block">Estimated Unit Cost</span>
+              <span class="font-mono font-bold text-emerald-400 text-xs">$${spare.unitPrice.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2 border-t border-slate-700">
+          <button onclick="closeSpecModal()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold">Close</button>
+          <button onclick="closeSpecModal(); openIndentForSpare('${spare.id}')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5">
+            <span>📋</span> Raise Indent for this Part
+          </button>
+        </div>
+      `;
+
+      document.getElementById('modal-spec').classList.remove('hidden');
+      document.getElementById('modal-spec').classList.add('flex');
+    }
+
+    function closeSpecModal() {
+      document.getElementById('modal-spec').classList.add('hidden');
+      document.getElementById('modal-spec').classList.remove('flex');
+    }
+
+    // DRAWER TOGGLE & TAB SWITCHING
+    function toggleWorkflowDrawer() {
+      const drawer = document.getElementById('drawer-workflow');
+      drawer.classList.toggle('translate-x-full');
+    }
+
+    let currentDrawerTab = 'indents';
+    function switchDrawerTab(tab) {
+      currentDrawerTab = tab;
+      const btnIndents = document.getElementById('tab-btn-indents');
+      const btnPOs = document.getElementById('tab-btn-pos');
+
+      if (tab === 'indents') {
+        btnIndents.className = "px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white";
+        btnPOs.className = "px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white";
+      } else {
+        btnIndents.className = "px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white";
+        btnPOs.className = "px-3 py-1.5 rounded-lg font-bold bg-emerald-600 text-white";
+      }
+      renderDrawerContent();
+    }
+
+    function renderDrawerContent() {
+      const container = document.getElementById('drawer-content');
+      if (currentDrawerTab === 'indents') {
+        container.innerHTML = indentsData.map(ind => `
+          <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-indigo-400">${ind.id}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ind.status === 'PO Raised' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                ${ind.status}
+              </span>
+            </div>
+            <div>
+              <span class="font-mono text-cyan-300 text-[11px] block">${ind.partNo}</span>
+              <p class="text-slate-300 font-semibold line-clamp-1">${ind.partName}</p>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
+              <span>Qty: <strong class="text-white">${ind.qty}</strong></span>
+              <span>Priority: <strong class="text-rose-400">${ind.urgency}</strong></span>
+            </div>
+            ${ind.poNumber ? `
+              <div class="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 p-1.5 rounded border border-emerald-500/20">
+                Linked PO: <strong>${ind.poNumber}</strong>
+              </div>
+            ` : (currentRole === 'purchase' ? `
+              <button onclick="openPOModalForIndent('${ind.id}')" class="w-full mt-2 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">
+                Raise PO for this Indent
+              </button>
+            ` : '')}
+          </div>
+        `).join('');
+      } else {
+        container.innerHTML = poData.map(po => `
+          <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-emerald-400">${po.poNo}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                ${po.status}
+              </span>
+            </div>
+            <div>
+              <span class="font-mono text-slate-400 text-[10px] block">Vendor: <strong class="text-white">${po.vendor}</strong></span>
+              <span class="text-cyan-300 font-mono text-[11px]">${po.partNo}</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
+              <span>Qty: <strong class="text-white">${po.qty}</strong></span>
+              <span>Value: <strong class="text-emerald-400">${po.totalVal}</strong></span>
+              <span>ETA: <strong class="text-white">${po.eta}</strong></span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function openPOModalForIndent(indentId) {
+      const ind = indentsData.find(i => i.id === indentId);
+      if (!ind) return;
+      const spare = pressSpares.find(s => s.partNo === ind.partNo) || pressSpares[0];
+      
+      document.getElementById('po-ref-indent').innerText = ind.id;
+      document.getElementById('po-part-ref').innerText = `${ind.partNo} (${ind.partName.substring(0, 30)}...)`;
+      document.getElementById('po-unit-cost').value = spare.unitPrice;
+      document.getElementById('po-qty').value = ind.qty;
+      document.getElementById('po-number').value = `PO-2026-09-${Math.floor(4200 + Math.random() * 800)}`;
+      calcPOTotal();
+
+      document.getElementById('modal-po').classList.remove('hidden');
+      document.getElementById('modal-po').classList.add('flex');
+    }
+
+    // PRIMARY ROLE ACTION BUTTON (Top right filter bar)
+    function executeRoleAction() {
+      if (currentRole === 'store') {
+        alert("🔍 Physical Bin Audit Mode Activated:\nAll 6 critical press shop racks flagged for physical inventory count verification.");
+      } else if (currentRole === 'supervisor') {
+        openIndentForSpare('spare-1');
+      } else if (currentRole === 'purchase') {
+        openPOForSpare('spare-2');
+      }
+    }
+
+    // UPDATE METRIC COUNTERS
+    function updateMetrics() {
+      const criticalCount = pressSpares.filter(s => s.currentStock === 0).length;
+      const warningCount = pressSpares.filter(s => s.currentStock <= s.minSafetyStock && s.currentStock > 0).length;
+      const openIndents = indentsData.filter(i => i.status !== 'PO Raised').length;
+      
+      document.getElementById('metric-critical').innerText = criticalCount;
+      document.getElementById('metric-warning').innerText = warningCount;
+      document.getElementById('metric-indents').innerText = indentsData.length;
+      document.getElementById('metric-pos').innerText = poData.length;
+      document.getElementById('badge-pending-count').innerText = openIndents;
+    }
+  </script>
+
+</body>
+</html>
